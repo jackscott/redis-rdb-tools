@@ -50,33 +50,21 @@ Example : %prog --command json -k "user.*" /var/redis/6379/dump.rdb"""
             else:
                 filters['types'].append(x)
     
-    # TODO : Fix this ugly if-else code
+    destination = sys.stdout 
     if options.output:
-        with open(options.output, "wb") as f:
-            if 'diff' == options.command:
-                callback = DiffCallback(f)
-            elif 'json' == options.command:
-                callback = JSONCallback(f)
-            elif 'memory' == options.command:
-                reporter = PrintAllKeys(f)
-                callback = MemoryCallback(reporter, 64)
-            else:
-                raise Exception('Invalid Command %s' % options.output)
-            parser = RdbParser(callback)
-            parser.parse(dump_file)
-    else:
-        if 'diff' == options.command:
-            callback = DiffCallback(sys.stdout)
-        elif 'json' == options.command:
-            callback = JSONCallback(sys.stdout)
-        elif 'memory' == options.command:
-            reporter = PrintAllKeys(sys.stdout)
-            callback = MemoryCallback(reporter, 64)
-        else:
-            raise Exception('Invalid Command %s' % options.output)
+        desitnaion = open(options.output, 'wb')
 
-        parser = RdbParser(callback, filters=filters)
-        parser.parse(dump_file)
+    cmds = { 'diff': DiffCallback, 
+             'json': JSONCallback, 
+             'memory': lambda r : MemoryCallback(r, 64) }
+    for key,cb in cmds.items():
+        if key != options.command:
+            continue
+        with destination as f:
+            parser = RdbParser(cb(f), filters=filters)
+            parser.parse(dump_file)
+        return True
+    raise Exception('Invalid Caommand %s' % options.output)
     
 if __name__ == '__main__':
     main()
